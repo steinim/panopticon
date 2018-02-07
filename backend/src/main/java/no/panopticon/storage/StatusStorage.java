@@ -2,6 +2,8 @@ package no.panopticon.storage;
 
 import no.panopticon.alerters.StatusAlerter;
 import no.panopticon.api.external.UpdatedStatus;
+import no.panopticon.api.external.sns.Alarm;
+import no.panopticon.api.external.sns.SnsMessage;
 import no.panopticon.api.internal.UnitDetails;
 import no.panopticon.api.internal.UnitSummary;
 import no.panopticon.alerters.MissingRunningUnitsAlerter;
@@ -59,6 +61,24 @@ public class StatusStorage {
         LOG.info("Updated " + unit + " with " + snapshot);
     }
 
+    public void processUpdatedStatus(SnsMessage snsMessage) {
+        RunningUnit unit = snsMessage.toRunningUnit();
+        StatusSnapshot snapshot = snsMessage.toStatusSnapshot();
+        currentStatuses.put(unit, snapshot);
+        missingRunningUnitsAlerter.checkin(unit);
+        statusAlerter.handle(unit, snapshot, currentStatuses);
+        LOG.info("Updated " + unit + " with " + snapshot);
+    }
+
+    public void processUpdatedStatus(Alarm alarm) {
+        RunningUnit unit = alarm.toRunningUnit();
+        StatusSnapshot snapshot = alarm.toStatusSnapshot();
+        currentStatuses.put(unit, snapshot);
+        missingRunningUnitsAlerter.checkin(unit);
+        statusAlerter.handle(unit, snapshot, currentStatuses);
+        LOG.info("Updated " + unit + " with " + snapshot);
+    }
+
     public List<UnitSummary> getAllRunningComponents() {
         return currentStatuses.entrySet().stream()
                 .map(entry -> UnitSummary.fromStoredStatus(entry.getKey(), entry.getValue()))
@@ -71,4 +91,5 @@ public class StatusStorage {
         return Optional.ofNullable(currentStatuses.get(unit))
                 .map(statusSnapshot -> UnitDetails.fromStoredStatus(unit, statusSnapshot));
     }
+
 }

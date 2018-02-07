@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import no.panopticon.api.external.sns.*;
 import no.panopticon.integrations.slack.SlackClient;
+import no.panopticon.storage.StatusStorage;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,10 +33,12 @@ public class SnsResource {
     public static final String SUBSCRIPTION_CONFIRMATION = "SubscriptionConfirmation";
     public static final String UNSUBSCRIBE_CONFIRMATION = "UnsubscribeConfirmation";
     private final SlackClient slackClient;
+    private final StatusStorage statusStorage;
 
     @Autowired
-    public SnsResource(SlackClient slackClient) {
+    public SnsResource(SlackClient slackClient, StatusStorage statusStorage) {
         this.slackClient = slackClient;
+        this.statusStorage = statusStorage;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(SnsResource.class);
@@ -63,8 +66,10 @@ public class SnsResource {
                 if ("ALARM".equals(alarm.NewStateValue)) {
                     color = SlackClient.RED;
                 }
+                statusStorage.processUpdatedStatus(alarm);
                 slackClient.awsSnsNotificationToSlack(alarm.NewStateValue, alarm.AlarmDescription, alarm.NewStateReason, topic, color);
             } else {
+                statusStorage.processUpdatedStatus(snsMessage);
                 slackClient.awsSnsNotificationToSlack(snsMessage.Type, snsMessage.Subject, snsMessage.Message, topic, color);
             }
         } else if (snsMessage.Type.equals(SUBSCRIPTION_CONFIRMATION)) {
